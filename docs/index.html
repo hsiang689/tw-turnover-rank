@@ -104,7 +104,7 @@ section.drop h2{font-size:14px;color:var(--muted);font-weight:500;margin:0 0 8px
     <h2>今日跌出前 <span class="topn2">150</span> 名</h2>
     <div class="droplist" id="drop"></div>
   </section>
-  <p class="note">點任一列會在右側的獨立視窗開 TradingView，之後點其他股票都在同一個視窗切換（填了版面網址就用你的版面）。名次變化與量比以前一交易日、前 20 個交易日平均成交值為基準；名次走勢為近 20 個交易日，線越高名次越前面。下載的清單為最新交易日。</p>
+  <p class="note">點任一列會在獨立視窗（全螢幕大小）開 TradingView，之後點其他股票都在同一個視窗切換（填了版面網址就用你的版面）。名次變化與量比以前一交易日、前 20 個交易日平均成交值為基準；名次走勢為近 20 個交易日，線越高名次越前面。下載的清單為最新交易日。</p>
 </main>
 <script>
 const COLS = [
@@ -127,9 +127,9 @@ const cls = v => v==null||v===0 ? "mut" : (v>0?"up":"down");
 function layoutId(){ const v=(document.getElementById("tvlayout")||{}).value||""; const m=v.match(/tradingview\.com\/chart\/([A-Za-z0-9]+)/); return m?m[1]:""; }
 const tvUrl = r => { const sym=`${r.market==="TWSE"?"TWSE":"TPEX"}%3A${encodeURIComponent(r.code)}`; const id=layoutId(); return id?`https://tw.tradingview.com/chart/${id}/?symbol=${sym}`:`https://tw.tradingview.com/chart/?symbol=${sym}`; };
 function openChart(url){
-  const W=screen.availWidth||1600, H=screen.availHeight||900, w=Math.round(W*0.62);
+  const W=screen.availWidth||1600, H=screen.availHeight||900;
   let win=null;
-  try{ win=window.open(url,"tvchart",`popup=yes,width=${w},height=${H},left=${W-w},top=0`); }catch(e){ win=null; }
+  try{ win=window.open(url,"tvchart",`popup=yes,width=${W},height=${H},left=0,top=0`); }catch(e){ win=null; }
   if(win){ try{ win.focus(); }catch(e){} return; }
   const a=document.createElement("a"); a.href=url; a.target="_blank"; a.rel="noopener"; a.click();
 }
