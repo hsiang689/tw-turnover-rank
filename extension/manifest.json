@@ -1,17 +1,32 @@
 {
   "manifest_version": 3,
   "name": "成交值排行 → TradingView",
-  "version": "1.0.0",
-  "description": "在台股成交值排行網頁點股票時，重複使用同一個最大化的 TradingView 視窗切換股票。",
-  "permissions": ["storage"],
+  "version": "1.1.0",
+  "description": "在台股成交值排行網頁點股票時，重複使用同一個最大化的 TradingView 視窗，並可在視窗內切換上一檔／下一檔。",
+  "permissions": [
+    "storage"
+  ],
   "background": {
     "service_worker": "background.js"
   },
   "content_scripts": [
     {
-      "matches": ["https://*.github.io/tw-turnover-rank/*"],
-      "js": ["content.js"],
+      "matches": [
+        "https://*.github.io/tw-turnover-rank/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_start"
+    },
+    {
+      "matches": [
+        "https://*.tradingview.com/chart/*"
+      ],
+      "js": [
+        "tv.js"
+      ],
+      "run_at": "document_idle"
     }
   ],
   "icons": {

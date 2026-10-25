@@ -47,6 +47,10 @@ th{position:sticky;top:0;background:var(--panel);color:var(--muted);font-weight:
 th.sorted{color:var(--text)} th.sorted::after{content:attr(data-dir);margin-left:3px;font-size:10px}
 td.l,th.l{text-align:left}
 tbody tr{cursor:pointer} tbody tr:hover{background:var(--hl)}
+tbody tr.cur{background:var(--hl);box-shadow:inset 3px 0 0 var(--accent)}
+.stocknav{display:flex;align-items:center;gap:6px;font-size:13px}
+.stocknav #scur{min-width:9em;text-align:center;color:var(--muted);font-variant-numeric:tabular-nums}
+.stocknav #scur b{color:var(--text)}
 .code{font-weight:600;margin-right:6px}
 .name{color:var(--muted)}
 .tag{display:inline-block;font-size:11px;padding:0 5px;border-radius:4px;margin-left:5px;
@@ -76,6 +80,11 @@ section.drop h2{font-size:14px;color:var(--muted);font-weight:500;margin:0 0 8px
         <button id="prev" title="前一個交易日">‹</button>
         <select id="date"></select>
         <button id="next" title="後一個交易日">›</button>
+      </div>
+      <div class="stocknav">
+        <button id="sprev" title="上一檔（←）">◀ 上一檔</button>
+        <span id="scur">點一檔股票開始</span>
+        <button id="snext" title="下一檔（→）">下一檔 ▶</button>
       </div>
       <div class="stats">
         <span>前 <b id="topn">150</b> 名佔全市場 <b id="share">–</b></span>
@@ -108,7 +117,7 @@ section.drop h2{font-size:14px;color:var(--muted);font-weight:500;margin:0 0 8px
     <h2>今日跌出前 <span class="topn2">150</span> 名</h2>
     <div class="droplist" id="drop"></div>
   </section>
-  <p class="note">點任一列會在獨立視窗（全螢幕大小）開 TradingView，之後點其他股票都在同一個視窗切換（填了版面網址就用你的版面）。名次變化與量比以前一交易日、前 20 個交易日平均成交值為基準；名次走勢為近 20 個交易日，線越高名次越前面。下載的清單為最新交易日。</p>
+  <p class="note">點任一列在 TradingView 開圖；上方的「上一檔／下一檔」或鍵盤 ← → 依目前篩選與排序切換（安裝擴充功能後，TradingView 視窗裡也有切換按鈕）。名次變化與量比以前一交易日、前 20 個交易日平均成交值為基準；名次走勢為近 20 個交易日，線越高名次越前面。下載的清單為最新交易日。</p>
 </main>
 <script>
 const COLS = [
@@ -124,15 +133,15 @@ const COLS = [
   {k:"streak",t:"連續在榜",tip:"往回數連續在前 150 名的天數"},
   {k:"hist",t:"近20日名次走勢",nosort:1,tip:"最近 20 個交易日每天的名次，越高越前面，虛線為第 150 名"},
 ];
-const S = {dates:[], idx:-1, data:null, sortK:"rank", sortDir:1, topN:150};
+const S = {dates:[], idx:-1, data:null, sortK:"rank", sortDir:1, topN:150, cur:null};
 const $ = id => document.getElementById(id);
 const fmt = (v,d=2) => v==null ? "–" : Number(v).toLocaleString("zh-TW",{minimumFractionDigits:d,maximumFractionDigits:d});
 const cls = v => v==null||v===0 ? "mut" : (v>0?"up":"down");
 function layoutId(){ const v=(document.getElementById("tvlayout")||{}).value||""; const m=v.match(/tradingview\.com\/chart\/([A-Za-z0-9]+)/); return m?m[1]:""; }
 const tvUrl = r => { const sym=`${r.market==="TWSE"?"TWSE":"TPEX"}%3A${encodeURIComponent(r.code)}`; const id=layoutId(); return id?`https://tw.tradingview.com/chart/${id}/?symbol=${sym}`:`https://tw.tradingview.com/chart/?symbol=${sym}`; };
-function openChart(url){
+function openChart(url, nav){
   // 已安裝「成交值排行 → TradingView」擴充功能時，交給它在同一個最大化視窗切換
-  if(document.documentElement.dataset.tvExt==="1"){ window.postMessage({source:"tw-rank",type:"openChart",url}, location.origin); return; }
+  if(document.documentElement.dataset.tvExt==="1"){ window.postMessage({source:"tw-rank",type:"openChart",url,nav:nav||null}, location.origin); return; }
   const W=screen.availWidth||1600, H=screen.availHeight||900;
   let win=null;
   try{ win=window.open(url,"tvchart",`popup=yes,width=${W},height=${H},left=0,top=0`); }catch(e){ win=null; }
@@ -140,6 +149,31 @@ function openChart(url){
   const a=document.createElement("a"); a.href=url; a.target="_blank"; a.rel="noopener"; a.click();
 }
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function updateCur(){
+  const list=S.data?rows():[]; const i=list.findIndex(r=>r.code===S.cur);
+  document.querySelectorAll("#body tr[data-code]").forEach(tr=>tr.classList.toggle("cur", tr.dataset.code===S.cur));
+  if(i>=0){ const r=list[i]; $("scur").innerHTML=`<b>${esc(r.code)} ${esc(r.name)}</b> · ${i+1}/${list.length}`; }
+  else $("scur").textContent = S.cur ? `${S.cur}（不在目前清單）` : "點一檔股票開始";
+  $("sprev").disabled = !(i>0); $("snext").disabled = !(list.length && i<list.length-1);
+}
+function openStock(code){
+  const list=rows(); const i=list.findIndex(r=>r.code===code); if(i<0) return;
+  S.cur=code; updateCur();
+  const tr=document.querySelector(`#body tr[data-code="${CSS.escape(code)}"]`); if(tr) tr.scrollIntoView({block:"nearest"});
+  openChart(tvUrl(list[i]), {index:i, list:list.map(r=>({code:r.code, url:tvUrl(r), label:`${r.code} ${r.name}`}))});
+}
+function step(d){
+  const list=rows(); if(!list.length) return;
+  let i=list.findIndex(r=>r.code===S.cur);
+  i = i<0 ? 0 : Math.min(list.length-1, Math.max(0, i+d));
+  openStock(list[i].code);
+}
+window.addEventListener("message", e=>{
+  if(e.source!==window || !e.data || e.data.source!=="tw-rank-ext" || e.data.type!=="navChanged") return;
+  S.cur=e.data.code; updateCur();
+  const tr=document.querySelector(`#body tr[data-code="${CSS.escape(S.cur)}"]`); if(tr) tr.scrollIntoView({block:"nearest"});
+});
 
 function spark(hist){
   const w=96,h=22,n=hist.length, cap=S.topN*2;
@@ -202,7 +236,7 @@ function renderBody(){
       : x.rank_chg===0 ? '<span class="mut">0</span>'
       : `<span class="${x.rank_chg>0?"up":"down"}">${x.rank_chg>0?"▲":"▼"}${Math.abs(x.rank_chg)}</span>`;
     const pct = x.chg_pct==null ? "–" : (x.chg_pct>0?"+":"")+fmt(x.chg_pct);
-    return `<tr data-url="${tvUrl(x)}">
+    return `<tr data-url="${tvUrl(x)}" data-code="${esc(x.code)}" class="${x.code===S.cur?"cur":""}">
       <td>${x.rank}</td>
       <td>${chg}</td>
       <td class="l"><span class="code">${esc(x.code)}</span><span class="name">${esc(x.name)}</span>${x.market==="TPEX"?'<span class="tag">櫃</span>':""}${x.etf?'<span class="tag">ETF</span>':""}${x.new?'<span class="tag new">新</span>':""}</td>
@@ -215,7 +249,8 @@ function renderBody(){
       <td>${x.streak}</td>
       <td>${spark(x.hist)}</td></tr>`;
   }).join("");
-  document.querySelectorAll("#body tr[data-url]").forEach(tr=> tr.onclick=e=>{ e.preventDefault(); openChart(tr.dataset.url); });
+  document.querySelectorAll("#body tr[data-url]").forEach(tr=> tr.onclick=e=>{ e.preventDefault(); openStock(tr.dataset.code); });
+  updateCur();
 }
 
 function renderMeta(){
@@ -256,6 +291,14 @@ async function init(){
     $("body").innerHTML=`<tr><td class="empty" colspan="${COLS.length}">尚無資料，請先在 GitHub Actions 執行一次排程。</td></tr>`;
   }
 }
+$("sprev").onclick=()=>step(-1);
+$("snext").onclick=()=>step(1);
+document.addEventListener("keydown", e=>{
+  if(e.altKey||e.ctrlKey||e.metaKey) return;
+  if(/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
+  if(e.key==="ArrowRight"){ e.preventDefault(); step(1); }
+  if(e.key==="ArrowLeft"){ e.preventDefault(); step(-1); }
+});
 $("prev").onclick=()=> S.idx>0 && load(S.idx-1);
 $("next").onclick=()=> S.idx<S.dates.length-1 && load(S.idx+1);
 $("date").onchange=e=> load(S.dates.indexOf(e.target.value));
