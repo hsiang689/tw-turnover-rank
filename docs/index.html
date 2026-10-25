@@ -131,6 +131,8 @@ const cls = v => v==null||v===0 ? "mut" : (v>0?"up":"down");
 function layoutId(){ const v=(document.getElementById("tvlayout")||{}).value||""; const m=v.match(/tradingview\.com\/chart\/([A-Za-z0-9]+)/); return m?m[1]:""; }
 const tvUrl = r => { const sym=`${r.market==="TWSE"?"TWSE":"TPEX"}%3A${encodeURIComponent(r.code)}`; const id=layoutId(); return id?`https://tw.tradingview.com/chart/${id}/?symbol=${sym}`:`https://tw.tradingview.com/chart/?symbol=${sym}`; };
 function openChart(url){
+  // 已安裝「成交值排行 → TradingView」擴充功能時，交給它在同一個最大化視窗切換
+  if(document.documentElement.dataset.tvExt==="1"){ window.postMessage({source:"tw-rank",type:"openChart",url}, location.origin); return; }
   const W=screen.availWidth||1600, H=screen.availHeight||900;
   let win=null;
   try{ win=window.open(url,"tvchart",`popup=yes,width=${W},height=${H},left=0,top=0`); }catch(e){ win=null; }

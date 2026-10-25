@@ -35,6 +35,23 @@
 - 點任一列直接在 TradingView 開圖
 - 下載 TradingView 觀察清單（全部 150 檔／新進榜）
 
+## Chrome 擴充功能（同一個視窗切換股票）
+
+一般網頁受 TradingView 安全設定限制，每點一檔都會開新視窗。安裝 `extension` 資料夾裡的擴充功能後，點股票會**重複使用同一個 TradingView 視窗並最大化**，只是換網址。
+
+安裝（一次性）：
+
+1. 下載 `extension` 資料夾到電腦（repo 首頁 Code → Download ZIP，解壓縮後取出 `extension`）
+2. Chrome 開 `chrome://extensions`，打開右上角「開發人員模式」
+3. 按「載入未封裝項目」，選 `extension` 資料夾
+4. 重新整理排行網頁
+
+說明：
+
+- 只在 `*.github.io/tw-turnover-rank/` 這個網站上運作，只操作它自己開的那個 TradingView 視窗，不會動到你其他分頁
+- 把那個視窗關掉，下次點擊會再開一個新的
+- 沒裝擴充功能時，網頁會自動用一般方式開新視窗
+
 ## 匯入 TradingView
 
 網頁右上角下載 `.txt` → TradingView 右側觀察清單選單 →「匯入清單」→ 選檔案。
