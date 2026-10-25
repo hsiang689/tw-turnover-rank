@@ -13,6 +13,7 @@
   python fetch_rank.py --rebuild-only     # 不抓資料，只重算排名與網頁用 JSON
 
 輸出
+  （只保留最近約 3 個月，環境變數 KEEP_DAYS 可調整）
   data/raw/YYYY-MM-DD.csv            當日全市場（已排除權證、可轉債等），含全市場名次
   docs/data/daily/YYYY-MM-DD.json    當日前 N 名＋連續性指標（網頁用）
   docs/data/index.json               已有資料的日期清單
@@ -37,6 +38,7 @@ import requests
 
 TOP_N = int(os.environ.get("TOP_N", "150"))
 HIST_WINDOW = 20          # 名次走勢、在榜天數用的交易日數
+KEEP_DAYS = int(os.environ.get("KEEP_DAYS", "92"))  # 資料保留天數（以最新交易日往回算，約 3 個月）
 SLEEP_SEC = 4.0           # 證交所有頻率限制，請求間隔
 TZ = ZoneInfo("Asia/Taipei")
 
@@ -227,6 +229,26 @@ def stored_dates():
     return sorted(p.stem for p in RAW_DIR.glob("*.csv"))
 
 
+# ---------------------------------------------------------------- retention
+def prune():
+    """刪除比最新交易日早 KEEP_DAYS 天以上的資料，以及沒有對應原始資料的網頁 JSON。"""
+    dates = stored_dates()
+    if not dates:
+        return
+    cutoff = (date.fromisoformat(dates[-1]) - timedelta(days=KEEP_DAYS)).isoformat()
+    removed = 0
+    for d in dates:
+        if d < cutoff:
+            raw_path(date.fromisoformat(d)).unlink(missing_ok=True)
+            removed += 1
+    keep = set(stored_dates())
+    for p in DAILY_DIR.glob("*.json"):
+        if p.stem not in keep:
+            p.unlink()
+    if removed:
+        print(f"已清除 {removed} 個超過 {KEEP_DAYS} 天的交易日")
+
+
 # ---------------------------------------------------------------- outputs
 def build_outputs():
     dates = stored_dates()
@@ -351,6 +373,7 @@ def main():
         else:
             if not run_date(end, a.force):
                 print(f"{end} 沒有交易資料（休市、週末或尚未公布）")
+    prune()
     build_outputs()
 
 
