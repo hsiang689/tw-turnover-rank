@@ -8,22 +8,43 @@ async function get(key) {
   return v[key] || null;
 }
 
-async function showInChartWindow(url) {
+function symbolOf(url) {
+  try { return decodeURIComponent(new URL(url).searchParams.get("symbol") || ""); } catch (e) { return ""; }
+}
+
+function sendWithTimeout(tabId, msg, ms) {
+  return Promise.race([
+    chrome.tabs.sendMessage(tabId, msg),
+    new Promise((resolve) => setTimeout(() => resolve(null), ms)),
+  ]).catch(() => null);
+}
+
+// info：{ label, index, total }，用來更新 TradingView 視窗裡的切換列
+async function showInChartWindow(url, info) {
   if (!ALLOWED.test(url)) return;
   const saved = await get(TAB_KEY);
   if (saved) {
-    try {
-      const tab = await chrome.tabs.get(saved.tabId);
-      await chrome.tabs.update(tab.id, { url, active: true });
+    let tab = null;
+    try { tab = await chrome.tabs.get(saved.tabId); } catch (e) { tab = null; }
+    if (tab) {
+      // 先嘗試在頁面內直接換商品（保留縮放比例），失敗才重新載入網址
+      const symbol = symbolOf(url);
+      const code = symbol.split(":").pop();
+      const res = symbol ? await sendWithTimeout(tab.id, { type: "switch", symbol, code, ...(info || {}) }, 12000) : null;
+      if (!res || !res.ok) await chrome.tabs.update(tab.id, { url, active: true });
       await chrome.windows.update(tab.windowId, { focused: true, state: "maximized" });
       return;
-    } catch (e) {
-      // 視窗已被關閉，改開新的
     }
   }
   const win = await chrome.windows.create({ url, type: "popup", state: "maximized", focused: true });
   const tab = win.tabs && win.tabs[0];
   if (tab) await chrome.storage.session.set({ [TAB_KEY]: { tabId: tab.id, windowId: win.id } });
+}
+
+function navInfo(nav) {
+  return nav && nav.list && nav.list.length
+    ? { label: nav.list[nav.index].label, index: nav.index, total: nav.list.length }
+    : null;
 }
 
 async function step(dir) {
@@ -33,7 +54,7 @@ async function step(dir) {
   if (index === nav.index) return;
   nav.index = index;
   await chrome.storage.session.set({ [NAV_KEY]: nav });
-  await showInChartWindow(nav.list[index].url);
+  await showInChartWindow(nav.list[index].url, navInfo(nav));
   if (nav.rankTabId != null) {
     chrome.tabs.sendMessage(nav.rankTabId, { type: "navChanged", code: nav.list[index].code }).catch(() => {});
   }
@@ -51,7 +72,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         const index = Math.max(0, list.findIndex((x) => x.url === msg.url));
         await chrome.storage.session.set({ [NAV_KEY]: { list, index, rankTabId: sender.tab ? sender.tab.id : null } });
       }
-      await showInChartWindow(msg.url);
+      await showInChartWindow(msg.url, navInfo(await get(NAV_KEY)));
     })();
     return;
   }
