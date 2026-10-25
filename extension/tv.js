@@ -72,9 +72,44 @@
     ui.next.disabled = info.index >= info.total - 1;
   }
 
+  // 拖曳移動，位置存在擴充功能的本機儲存空間，下次開啟沿用
+  function place(host, x, y) {
+    const w = host.offsetWidth || 360, h = host.offsetHeight || 40;
+    x = Math.min(Math.max(0, x), window.innerWidth - w);
+    y = Math.min(Math.max(0, y), window.innerHeight - h);
+    host.style.left = x + "px"; host.style.top = y + "px"; host.style.bottom = "auto";
+  }
+  function makeDraggable(host, grip) {
+    chrome.storage.local.get("barPos", (v) => {
+      const p = v && v.barPos;
+      if (p) requestAnimationFrame(() => place(host, p.x * window.innerWidth, p.y * window.innerHeight));
+    });
+    let start = null;
+    grip.addEventListener("pointerdown", (e) => {
+      const r = host.getBoundingClientRect();
+      start = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+      grip.setPointerCapture(e.pointerId); e.preventDefault();
+    });
+    grip.addEventListener("pointermove", (e) => {
+      if (start) place(host, e.clientX - start.dx, e.clientY - start.dy);
+    });
+    grip.addEventListener("pointerup", () => {
+      if (!start) return; start = null;
+      const r = host.getBoundingClientRect();
+      chrome.storage.local.set({ barPos: { x: r.left / window.innerWidth, y: r.top / window.innerHeight } });
+    });
+    grip.addEventListener("dblclick", () => {
+      chrome.storage.local.remove("barPos");
+      host.style.left = "72px"; host.style.top = "auto"; host.style.bottom = "96px";
+    });
+    window.addEventListener("resize", () => {
+      if (host.style.top && host.style.top !== "auto") place(host, parseFloat(host.style.left), parseFloat(host.style.top));
+    });
+  }
+
   function build() {
     const host = document.createElement("div");
-    host.style.cssText = "position:fixed;left:50%;bottom:52px;transform:translateX(-50%);z-index:2147483647;";
+    host.style.cssText = "position:fixed;left:72px;bottom:96px;z-index:2147483647;";
     const root = host.attachShadow({ mode: "closed" });
     root.innerHTML = `
       <style>
@@ -88,8 +123,11 @@
         .lbl{padding:0 6px;white-space:nowrap;font-variant-numeric:tabular-nums}
         .lbl b{color:#fff;font-weight:600}
         .pos{color:#8a919c;margin-left:4px}
+        .grip{cursor:grab;color:#6b7380;padding:2px 2px 2px 4px;letter-spacing:-2px;touch-action:none}
+        .grip:active{cursor:grabbing}
       </style>
       <div class="bar">
+        <span class="grip" title="拖曳移動位置（雙擊回到預設位置）">⋮⋮</span>
         <button class="prev" title="上一檔">◀ 上一檔</button>
         <span class="lbl"><b></b><span class="pos"></span></span>
         <button class="next" title="下一檔">下一檔 ▶</button>
@@ -99,6 +137,7 @@
     prev.addEventListener("click", () => go(-1));
     next.addEventListener("click", () => go(1));
     (document.body || document.documentElement).appendChild(host);
+    makeDraggable(host, root.querySelector(".grip"));
     return { prev, next, label: root.querySelector("b"), pos: root.querySelector(".pos") };
   }
 })();
