@@ -197,7 +197,6 @@ function rows(){
 function renderBody(){
   const r = rows();
   if(!r.length){ $("body").innerHTML=`<tr><td class="empty" colspan="${COLS.length}">沒有符合條件的股票</td></tr>`; return; }
-  const n5 = Math.min(5, S.idx+1);
   $("body").innerHTML = r.map(x=>{
     const chg = x.rank_chg==null ? '<span class="mut">–</span>'
       : x.rank_chg===0 ? '<span class="mut">0</span>'
@@ -211,8 +210,8 @@ function renderBody(){
       <td class="${cls(x.chg_pct)}">${pct}</td>
       <td>${fmt(x.value/1e8,1)}</td>
       <td class="${x.vratio>=1.5?"up":""}">${x.vratio==null?"–":fmt(x.vratio)}</td>
-      <td>${dots(x.in5,n5)}</td>
-      <td class="mut">${x.in20}/${S.data.window.length}</td>
+      <td class="${x.in5===5?"":"mut"}">${x.in5}/5</td>
+      <td class="${x.in20===20?"":"mut"}">${x.in20}/20</td>
       <td>${x.streak}</td>
       <td>${spark(x.hist)}</td></tr>`;
   }).join("");
