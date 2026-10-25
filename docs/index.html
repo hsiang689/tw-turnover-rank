@@ -112,17 +112,17 @@ section.drop h2{font-size:14px;color:var(--muted);font-weight:500;margin:0 0 8px
 </main>
 <script>
 const COLS = [
-  {k:"rank",t:"名次"},
-  {k:"rank_chg",t:"變化"},
+  {k:"rank",t:"當日名次",tip:"當天成交值在上市＋上櫃的排名"},
+  {k:"rank_chg",t:"名次變化",tip:"與前一個交易日相比，▲ 表示名次往前"},
   {k:"code",t:"代號／名稱",l:1},
   {k:"close",t:"收盤"},
   {k:"chg_pct",t:"漲跌%"},
   {k:"value",t:"成交值(億)"},
-  {k:"vratio",t:"量比"},
-  {k:"in5",t:"近5日"},
-  {k:"in20",t:"近20日"},
-  {k:"streak",t:"連續"},
-  {k:"hist",t:"名次走勢",nosort:1},
+  {k:"vratio",t:"量比(20日)",tip:"當天成交值 ÷ 前 20 個交易日平均"},
+  {k:"in5",t:"近5日在榜",tip:"最近 5 個交易日中，進前 150 名的天數"},
+  {k:"in20",t:"近20日在榜",tip:"最近 20 個交易日中，進前 150 名的天數"},
+  {k:"streak",t:"連續在榜",tip:"往回數連續在前 150 名的天數"},
+  {k:"hist",t:"近20日名次走勢",nosort:1,tip:"最近 20 個交易日每天的名次，越高越前面，虛線為第 150 名"},
 ];
 const S = {dates:[], idx:-1, data:null, sortK:"rank", sortDir:1, topN:150};
 const $ = id => document.getElementById(id);
@@ -164,7 +164,7 @@ function dots(k,total){
 function renderHead(){
   $("head").innerHTML = COLS.map(c=>{
     const sorted = c.k===S.sortK;
-    return `<th class="${c.l?"l":""} ${sorted?"sorted":""}" data-k="${c.k}" ${sorted?`data-dir="${S.sortDir>0?"▲":"▼"}"`:""}>${c.t}</th>`;
+    return `<th class="${c.l?"l":""} ${sorted?"sorted":""}" data-k="${c.k}" ${c.tip?`title="${c.tip}"`:""} ${sorted?`data-dir="${S.sortDir>0?"▲":"▼"}"`:""}>${c.t}</th>`;
   }).join("");
   document.querySelectorAll("#head th").forEach(th=>{
     const c = COLS.find(c=>c.k===th.dataset.k);
