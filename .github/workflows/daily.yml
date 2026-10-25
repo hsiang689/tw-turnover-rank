@@ -1,0 +1,67 @@
+name: 每日成交值排行
+
+on:
+  schedule:
+    # 台北時間週一到週五 17:07 與 21:07（UTC 09:07 / 13:07）
+    # 第二次是保險：若第一次資料還沒公布或 GitHub 排程延遲，會補抓；已抓過就略過
+    - cron: "7 9 * * 1-5"
+    - cron: "7 13 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      date:
+        description: "指定日期 YYYY-MM-DD（留空 = 今天）"
+        required: false
+        default: ""
+      backfill:
+        description: "往回補到最近 N 個交易日（0 = 只抓單日）"
+        required: false
+        default: "0"
+      force:
+        description: "已存在也重抓（true/false）"
+        required: false
+        default: "false"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: daily-rank
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安裝套件
+        run: pip install -r requirements.txt
+
+      - name: 抓取並建立排行
+        env:
+          IN_DATE: ${{ github.event.inputs.date }}
+          IN_BACKFILL: ${{ github.event.inputs.backfill }}
+          IN_FORCE: ${{ github.event.inputs.force }}
+        run: |
+          ARGS=""
+          if [ -n "$IN_DATE" ]; then ARGS="$ARGS --date $IN_DATE"; fi
+          if [ -n "$IN_BACKFILL" ] && [ "$IN_BACKFILL" != "0" ]; then ARGS="$ARGS --backfill $IN_BACKFILL"; fi
+          if [ "$IN_FORCE" = "true" ]; then ARGS="$ARGS --force"; fi
+          python fetch_rank.py $ARGS
+
+      - name: 提交資料
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data docs/data
+          if git diff --cached --quiet; then
+            echo "沒有新資料"
+          else
+            git commit -m "data: $(TZ=Asia/Taipei date +%F) 成交值排行"
+            git push
+          fi

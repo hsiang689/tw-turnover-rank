@@ -1,0 +1,263 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>成交值排行追蹤</title>
+<style>
+:root{
+  --bg:#0f1115; --panel:#161a20; --line:#262b33; --text:#d7dbe0; --muted:#8a919c;
+  --accent:#4f8cff; --up:#f0484f; --down:#22ab94; --chip:#1f242c; --hl:#1b2230;
+  --new:#f5a524;
+}
+@media (prefers-color-scheme: light){
+  :root{ --bg:#f6f7f9; --panel:#fff; --line:#e3e6ea; --text:#1d2128; --muted:#6b7380;
+    --accent:#2f6fe4; --up:#d9363e; --down:#0f9b7f; --chip:#eef0f3; --hl:#eef4ff; --new:#c97a00; }
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font:14px/1.45 "Noto Sans TC","PingFang TC","Microsoft JhengHei",system-ui,sans-serif}
+header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px solid var(--line)}
+.wrap{max-width:1280px;margin:0 auto;padding:0 16px}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding:14px 0 10px}
+h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.02em}
+.datebox{display:flex;align-items:center;gap:6px}
+button,select,input{font:inherit;color:inherit;background:var(--chip);border:1px solid var(--line);
+  border-radius:6px;padding:5px 9px}
+button{cursor:pointer} button:disabled{opacity:.35;cursor:default}
+.stats{display:flex;gap:18px;color:var(--muted);font-size:13px;margin-left:auto}
+.stats b{color:var(--text);font-variant-numeric:tabular-nums}
+.filters{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;padding:0 0 12px;font-size:13px}
+.filters label{display:flex;align-items:center;gap:5px;color:var(--muted);cursor:pointer}
+.filters input[type=search]{width:170px}
+.filters input[type=url]{width:230px;max-width:100%}
+.dl{margin-left:auto;display:flex;gap:8px}
+.dl a{color:var(--accent);text-decoration:none;font-size:13px;border:1px solid var(--line);
+  border-radius:6px;padding:5px 9px;background:var(--chip)}
+main{padding:12px 0 40px}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;min-width:980px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 10px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{position:sticky;top:0;background:var(--panel);color:var(--muted);font-weight:500;font-size:12.5px;
+  cursor:pointer;user-select:none}
+th.sorted{color:var(--text)} th.sorted::after{content:attr(data-dir);margin-left:3px;font-size:10px}
+td.l,th.l{text-align:left}
+tbody tr{cursor:pointer} tbody tr:hover{background:var(--hl)}
+.code{font-weight:600;margin-right:6px}
+.name{color:var(--muted)}
+.tag{display:inline-block;font-size:11px;padding:0 5px;border-radius:4px;margin-left:5px;
+  border:1px solid var(--line);color:var(--muted)}
+.tag.new{color:var(--new);border-color:var(--new)}
+.up{color:var(--up)} .down{color:var(--down)} .mut{color:var(--muted)}
+.dots{display:inline-flex;gap:3px;vertical-align:middle}
+.dots i{width:8px;height:8px;border-radius:2px;background:var(--line)}
+.dots i.on{background:var(--accent)}
+svg.spark{vertical-align:middle;overflow:visible}
+section.drop{margin-top:22px}
+section.drop h2{font-size:14px;color:var(--muted);font-weight:500;margin:0 0 8px}
+.droplist{display:flex;flex-wrap:wrap;gap:6px}
+.droplist span{background:var(--chip);border:1px solid var(--line);border-radius:6px;padding:3px 8px;
+  font-size:12.5px;cursor:pointer}
+.empty{padding:40px;text-align:center;color:var(--muted)}
+.note{color:var(--muted);font-size:12px;margin-top:14px}
+@media (max-width:700px){ .stats{margin-left:0} .dl{margin-left:0} }
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap">
+    <div class="top">
+      <h1>成交值排行追蹤</h1>
+      <div class="datebox">
+        <button id="prev" title="前一個交易日">‹</button>
+        <select id="date"></select>
+        <button id="next" title="後一個交易日">›</button>
+      </div>
+      <div class="stats">
+        <span>前 <b id="topn">150</b> 名佔全市場 <b id="share">–</b></span>
+        <span>新進榜 <b id="newcnt">–</b></span>
+        <span>跌出榜 <b id="dropcnt">–</b></span>
+      </div>
+    </div>
+    <div class="filters">
+      <input type="search" id="q" placeholder="代號或名稱">
+      <select id="mkt"><option value="">上市＋上櫃</option><option value="TWSE">上市</option><option value="TPEX">上櫃</option></select>
+      <label><input type="checkbox" id="noetf"> 隱藏 ETF</label>
+      <label><input type="checkbox" id="onlynew"> 只看新進榜</label>
+      <label>連續在榜 ≥ <select id="streak"><option>1</option><option>2</option><option>3</option><option>5</option><option>10</option></select> 天</label>
+      <input type="url" id="tvlayout" placeholder="TradingView 版面網址（選填）" title="在 TradingView 開啟你的台股版面，複製網址貼在這裡，之後點股票都會用這個版面打開">
+      <div class="dl">
+        <a id="dlall" href="#" download>TradingView 清單</a>
+        <a id="dlnew" href="#" download>新進榜清單</a>
+      </div>
+    </div>
+  </div>
+</header>
+<main class="wrap">
+  <div class="tablewrap">
+    <table>
+      <thead><tr id="head"></tr></thead>
+      <tbody id="body"><tr><td class="empty" colspan="11">載入中…</td></tr></tbody>
+    </table>
+  </div>
+  <section class="drop">
+    <h2>今日跌出前 <span class="topn2">150</span> 名</h2>
+    <div class="droplist" id="drop"></div>
+  </section>
+  <p class="note">點任一列會在右側的獨立視窗開 TradingView，之後點其他股票都在同一個視窗切換（填了版面網址就用你的版面）。名次變化與量比以前一交易日、前 20 個交易日平均成交值為基準；名次走勢為近 20 個交易日，線越高名次越前面。下載的清單為最新交易日。</p>
+</main>
+<script>
+const COLS = [
+  {k:"rank",t:"名次"},
+  {k:"rank_chg",t:"變化"},
+  {k:"code",t:"代號／名稱",l:1},
+  {k:"close",t:"收盤"},
+  {k:"chg_pct",t:"漲跌%"},
+  {k:"value",t:"成交值(億)"},
+  {k:"vratio",t:"量比"},
+  {k:"in5",t:"近5日"},
+  {k:"in20",t:"近20日"},
+  {k:"streak",t:"連續"},
+  {k:"hist",t:"名次走勢",nosort:1},
+];
+const S = {dates:[], idx:-1, data:null, sortK:"rank", sortDir:1, topN:150};
+const $ = id => document.getElementById(id);
+const fmt = (v,d=2) => v==null ? "–" : Number(v).toLocaleString("zh-TW",{minimumFractionDigits:d,maximumFractionDigits:d});
+const cls = v => v==null||v===0 ? "mut" : (v>0?"up":"down");
+function layoutId(){ const v=(document.getElementById("tvlayout")||{}).value||""; const m=v.match(/tradingview\.com\/chart\/([A-Za-z0-9]+)/); return m?m[1]:""; }
+const tvUrl = r => { const sym=`${r.market==="TWSE"?"TWSE":"TPEX"}%3A${encodeURIComponent(r.code)}`; const id=layoutId(); return id?`https://tw.tradingview.com/chart/${id}/?symbol=${sym}`:`https://tw.tradingview.com/chart/?symbol=${sym}`; };
+function openChart(url){
+  const W=screen.availWidth||1600, H=screen.availHeight||900, w=Math.round(W*0.62);
+  let win=null;
+  try{ win=window.open(url,"tvchart",`popup=yes,width=${w},height=${H},left=${W-w},top=0`); }catch(e){ win=null; }
+  if(win){ try{ win.focus(); }catch(e){} return; }
+  const a=document.createElement("a"); a.href=url; a.target="_blank"; a.rel="noopener"; a.click();
+}
+const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+function spark(hist){
+  const w=96,h=22,n=hist.length, cap=S.topN*2;
+  if(!n) return "";
+  const x=i=> n===1? w/2 : i*(w/(n-1));
+  const y=r=> r==null? h : (Math.min(r,cap)-1)/(cap-1)*h;
+  let d="", pts="";
+  hist.forEach((r,i)=>{ if(r==null) return; d += (d?"L":"M")+x(i).toFixed(1)+","+y(r).toFixed(1); });
+  const last=hist[n-1];
+  const lineY=y(S.topN);
+  return `<svg class="spark" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}">
+    <line x1="0" x2="${w}" y1="${lineY}" y2="${lineY}" stroke="var(--line)" stroke-dasharray="2 2"/>
+    <path d="${d}" fill="none" stroke="var(--accent)" stroke-width="1.5"/>
+    ${last!=null?`<circle cx="${x(n-1)}" cy="${y(last)}" r="2.2" fill="var(--accent)"/>`:""}</svg>`;
+}
+function dots(k,total){
+  let s='<span class="dots">';
+  for(let i=0;i<total;i++) s+=`<i class="${i<k?"on":""}"></i>`;
+  return s+`</span> <span class="mut">${k}</span>`;
+}
+
+function renderHead(){
+  $("head").innerHTML = COLS.map(c=>{
+    const sorted = c.k===S.sortK;
+    return `<th class="${c.l?"l":""} ${sorted?"sorted":""}" data-k="${c.k}" ${sorted?`data-dir="${S.sortDir>0?"▲":"▼"}"`:""}>${c.t}</th>`;
+  }).join("");
+  document.querySelectorAll("#head th").forEach(th=>{
+    const c = COLS.find(c=>c.k===th.dataset.k);
+    if(c.nosort) return;
+    th.onclick=()=>{
+      if(S.sortK===c.k) S.sortDir*=-1;
+      else { S.sortK=c.k; S.sortDir = (c.k==="rank"||c.k==="code") ? 1 : -1; }
+      renderHead(); renderBody();
+    };
+  });
+}
+
+function rows(){
+  const q=$("q").value.trim().toLowerCase(), m=$("mkt").value,
+        noetf=$("noetf").checked, onlynew=$("onlynew").checked, st=+$("streak").value;
+  let r = S.data.rows.filter(x =>
+    (!q || x.code.toLowerCase().includes(q) || x.name.toLowerCase().includes(q)) &&
+    (!m || x.market===m) && (!noetf || !x.etf) && (!onlynew || x.new) && x.streak>=st);
+  const k=S.sortK, d=S.sortDir;
+  r.sort((a,b)=>{
+    let va=a[k], vb=b[k];
+    if(va==null && vb==null) return a.rank-b.rank;
+    if(va==null) return 1; if(vb==null) return -1;
+    if(typeof va==="string") return va.localeCompare(vb)*d;
+    return (va-vb)*d || a.rank-b.rank;
+  });
+  return r;
+}
+
+function renderBody(){
+  const r = rows();
+  if(!r.length){ $("body").innerHTML=`<tr><td class="empty" colspan="${COLS.length}">沒有符合條件的股票</td></tr>`; return; }
+  const n5 = Math.min(5, S.idx+1);
+  $("body").innerHTML = r.map(x=>{
+    const chg = x.rank_chg==null ? '<span class="mut">–</span>'
+      : x.rank_chg===0 ? '<span class="mut">0</span>'
+      : `<span class="${x.rank_chg>0?"up":"down"}">${x.rank_chg>0?"▲":"▼"}${Math.abs(x.rank_chg)}</span>`;
+    const pct = x.chg_pct==null ? "–" : (x.chg_pct>0?"+":"")+fmt(x.chg_pct);
+    return `<tr data-url="${tvUrl(x)}">
+      <td>${x.rank}</td>
+      <td>${chg}</td>
+      <td class="l"><span class="code">${esc(x.code)}</span><span class="name">${esc(x.name)}</span>${x.market==="TPEX"?'<span class="tag">櫃</span>':""}${x.etf?'<span class="tag">ETF</span>':""}${x.new?'<span class="tag new">新</span>':""}</td>
+      <td>${x.close==null?"–":Number(x.close).toLocaleString("zh-TW",{maximumFractionDigits:2})}</td>
+      <td class="${cls(x.chg_pct)}">${pct}</td>
+      <td>${fmt(x.value/1e8,1)}</td>
+      <td class="${x.vratio>=1.5?"up":""}">${x.vratio==null?"–":fmt(x.vratio)}</td>
+      <td>${dots(x.in5,n5)}</td>
+      <td class="mut">${x.in20}/${S.data.window.length}</td>
+      <td>${x.streak}</td>
+      <td>${spark(x.hist)}</td></tr>`;
+  }).join("");
+  document.querySelectorAll("#body tr[data-url]").forEach(tr=> tr.onclick=e=>{ e.preventDefault(); openChart(tr.dataset.url); });
+}
+
+function renderMeta(){
+  const d=S.data;
+  $("share").textContent = d.top_value_share==null?"–":d.top_value_share+"%";
+  $("newcnt").textContent = d.rows.filter(x=>x.new).length;
+  $("dropcnt").textContent = d.dropped.length;
+  $("drop").innerHTML = d.dropped.length ? d.dropped.map(x=>
+    `<span data-url="${tvUrl(x)}" title="昨日第 ${x.prev_rank} 名">${esc(x.code)} ${esc(x.name)} <span class="mut">${x.prev_rank}→${x.rank??"–"}</span></span>`).join("")
+    : '<span class="mut" style="border:0;background:none">無</span>';
+  document.querySelectorAll("#drop span[data-url]").forEach(s=> s.onclick=()=>openChart(s.dataset.url));
+  $("prev").disabled = S.idx<=0;
+  $("next").disabled = S.idx>=S.dates.length-1;
+  $("date").value = S.dates[S.idx];
+}
+
+async function load(i){
+  S.idx=i;
+  $("body").innerHTML=`<tr><td class="empty" colspan="${COLS.length}">載入中…</td></tr>`;
+  const res = await fetch(`data/daily/${S.dates[i]}.json`, {cache:"no-cache"});
+  S.data = await res.json();
+  renderMeta(); renderBody();
+}
+
+async function init(){
+  try{
+    const idx = await (await fetch("data/index.json",{cache:"no-cache"})).json();
+    S.dates = idx.dates; S.topN = idx.top_n;
+    document.querySelectorAll("#topn,.topn2").forEach(e=>e.textContent=S.topN);
+    $("dlall").href = `data/tradingview_top${S.topN}.txt`;
+    $("dlall").download = `成交值前${S.topN}_${S.dates.at(-1)}.txt`;
+    $("dlnew").href = "data/tradingview_new.txt";
+    $("dlnew").download = `新進榜_${S.dates.at(-1)}.txt`;
+    $("date").innerHTML = S.dates.map(d=>`<option>${d}</option>`).reverse().join("");
+    renderHead();
+    await load(S.dates.length-1);
+  }catch(e){
+    $("body").innerHTML=`<tr><td class="empty" colspan="${COLS.length}">尚無資料，請先在 GitHub Actions 執行一次排程。</td></tr>`;
+  }
+}
+$("prev").onclick=()=> S.idx>0 && load(S.idx-1);
+$("next").onclick=()=> S.idx<S.dates.length-1 && load(S.idx+1);
+$("date").onchange=e=> load(S.dates.indexOf(e.target.value));
+["q","mkt","noetf","onlynew","streak"].forEach(id=> $(id).addEventListener("input", renderBody));
+try{ const v=localStorage.getItem("tvLayout"); if(v) $("tvlayout").value=v; }catch(e){}
+$("tvlayout").addEventListener("change",()=>{ try{ localStorage.setItem("tvLayout",$("tvlayout").value.trim()); }catch(e){} if(S.data){ renderMeta(); renderBody(); } });
+init();
+</script>
+</body>
+</html>
