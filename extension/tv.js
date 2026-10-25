@@ -77,7 +77,7 @@
     const w = host.offsetWidth || 360, h = host.offsetHeight || 40;
     x = Math.min(Math.max(0, x), window.innerWidth - w);
     y = Math.min(Math.max(0, y), window.innerHeight - h);
-    host.style.left = x + "px"; host.style.top = y + "px"; host.style.bottom = "auto";
+    host.style.left = x + "px"; host.style.top = y + "px"; host.style.right = "auto"; host.style.bottom = "auto";
   }
   function makeDraggable(host, grip) {
     chrome.storage.local.get("barPos", (v) => {
@@ -100,7 +100,7 @@
     });
     grip.addEventListener("dblclick", () => {
       chrome.storage.local.remove("barPos");
-      host.style.left = "72px"; host.style.top = "auto"; host.style.bottom = "96px";
+      host.style.left = "auto"; host.style.top = "auto"; host.style.right = "124px"; host.style.bottom = "144px";
     });
     window.addEventListener("resize", () => {
       if (host.style.top && host.style.top !== "auto") place(host, parseFloat(host.style.left), parseFloat(host.style.top));
@@ -109,7 +109,7 @@
 
   function build() {
     const host = document.createElement("div");
-    host.style.cssText = "position:fixed;left:72px;bottom:96px;z-index:2147483647;";
+    host.style.cssText = "position:fixed;right:124px;bottom:144px;z-index:2147483647;";
     const root = host.attachShadow({ mode: "closed" });
     root.innerHTML = `
       <style>
