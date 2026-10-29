@@ -76,7 +76,7 @@
 
   // 拖曳移動，位置存在擴充功能的本機儲存空間，下次開啟沿用
   function place(host, x, y) {
-    const w = host.offsetWidth || 360, h = host.offsetHeight || 40;
+    const w = 300, h = host.offsetHeight || 40; // 只確保按鈕留在畫面內，名稱可往右延伸
     x = Math.min(Math.max(0, x), window.innerWidth - w);
     y = Math.min(Math.max(0, y), window.innerHeight - h);
     host.style.left = x + "px"; host.style.top = y + "px"; host.style.right = "auto"; host.style.bottom = "auto";
@@ -102,7 +102,7 @@
     });
     grip.addEventListener("dblclick", () => {
       chrome.storage.local.remove("barPos");
-      host.style.left = "auto"; host.style.top = "auto"; host.style.right = "124px"; host.style.bottom = "144px";
+      host.style.left = "calc(100% - 600px)"; host.style.top = "auto"; host.style.right = "auto"; host.style.bottom = "144px";
     });
     window.addEventListener("resize", () => {
       if (host.style.top && host.style.top !== "auto") place(host, parseFloat(host.style.left), parseFloat(host.style.top));
@@ -111,7 +111,7 @@
 
   function build() {
     const host = document.createElement("div");
-    host.style.cssText = "position:fixed;right:124px;bottom:144px;z-index:2147483647;";
+    host.style.cssText = "position:fixed;left:calc(100% - 600px);bottom:144px;z-index:2147483647;";
     const root = host.attachShadow({ mode: "closed" });
     root.innerHTML = `
       <style>
@@ -133,8 +133,8 @@
       <div class="bar">
         <span class="grip" title="拖曳移動位置（雙擊回到預設位置）">⋮⋮</span>
         <button class="prev" title="上一檔">◀ 上一檔</button>
-        <span class="lbl"><b></b><span class="pos"></span><span class="stk" title="連續在成交值前 150 名的天數"></span></span>
         <button class="next" title="下一檔">下一檔 ▶</button>
+        <span class="lbl"><b></b><span class="pos"></span><span class="stk" title="連續在成交值前 150 名的天數"></span></span>
       </div>`;
     const prev = root.querySelector(".prev"), next = root.querySelector(".next");
     const go = (dir) => { prev.disabled = next.disabled = true; chrome.runtime.sendMessage({ type: "step", dir }); };
