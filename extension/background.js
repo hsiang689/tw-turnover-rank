@@ -43,7 +43,7 @@ async function showInChartWindow(url, info) {
 
 function navInfo(nav) {
   return nav && nav.list && nav.list.length
-    ? { label: nav.list[nav.index].label, index: nav.index, total: nav.list.length }
+    ? { label: nav.list[nav.index].label, streak: nav.list[nav.index].streak, index: nav.index, total: nav.list.length }
     : null;
 }
 
@@ -68,7 +68,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (msg.nav && Array.isArray(msg.nav.list)) {
         const list = msg.nav.list
           .filter((x) => x && ALLOWED.test(String(x.url)))
-          .map((x) => ({ code: String(x.code), url: String(x.url), label: String(x.label).slice(0, 40) }));
+          .map((x) => ({ code: String(x.code), url: String(x.url), label: String(x.label).slice(0, 40), streak: Math.max(0, parseInt(x.streak, 10) || 0) }));
         const index = Math.max(0, list.findIndex((x) => x.url === msg.url));
         await chrome.storage.session.set({ [NAV_KEY]: { list, index, rankTabId: sender.tab ? sender.tab.id : null } });
       }
@@ -86,7 +86,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       if (msg.type === "step") { await step(msg.dir > 0 ? 1 : -1); sendResponse({ ok: true }); return; }
       const nav = await get(NAV_KEY);
       if (!nav || !nav.list || !nav.list.length) { sendResponse({ isChart: true, total: 0 }); return; }
-      sendResponse({ isChart: true, index: nav.index, total: nav.list.length, label: nav.list[nav.index].label });
+      sendResponse({ isChart: true, index: nav.index, total: nav.list.length, label: nav.list[nav.index].label, streak: nav.list[nav.index].streak });
     })();
     return true; // 非同步回覆
   }

@@ -68,6 +68,8 @@
     if (!ui) ui = build();
     ui.label.textContent = info.label || "";
     ui.pos.textContent = `${info.index + 1}/${info.total}`;
+    ui.stk.textContent = info.streak ? `${info.streak}天` : "";
+    ui.stk.hidden = !info.streak;
     ui.prev.disabled = info.index <= 0;
     ui.next.disabled = info.index >= info.total - 1;
   }
@@ -123,13 +125,15 @@
         .lbl{padding:0 6px;white-space:nowrap;font-variant-numeric:tabular-nums}
         .lbl b{color:#fff;font-weight:600}
         .pos{color:#8a919c;margin-left:4px}
+        .stk{margin-left:8px;padding:1px 7px;border-radius:10px;background:#1d2a44;color:#8fb4ff;font-size:12px}
+        .stk[hidden]{display:none}
         .grip{cursor:grab;color:#6b7380;padding:2px 2px 2px 4px;letter-spacing:-2px;touch-action:none}
         .grip:active{cursor:grabbing}
       </style>
       <div class="bar">
         <span class="grip" title="拖曳移動位置（雙擊回到預設位置）">⋮⋮</span>
         <button class="prev" title="上一檔">◀ 上一檔</button>
-        <span class="lbl"><b></b><span class="pos"></span></span>
+        <span class="lbl"><b></b><span class="pos"></span><span class="stk" title="連續在成交值前 150 名的天數"></span></span>
         <button class="next" title="下一檔">下一檔 ▶</button>
       </div>`;
     const prev = root.querySelector(".prev"), next = root.querySelector(".next");
@@ -138,6 +142,6 @@
     next.addEventListener("click", () => go(1));
     (document.body || document.documentElement).appendChild(host);
     makeDraggable(host, root.querySelector(".grip"));
-    return { prev, next, label: root.querySelector("b"), pos: root.querySelector(".pos") };
+    return { prev, next, label: root.querySelector("b"), pos: root.querySelector(".pos"), stk: root.querySelector(".stk") };
   }
 })();

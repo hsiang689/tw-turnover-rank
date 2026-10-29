@@ -48,9 +48,6 @@ th.sorted{color:var(--text)} th.sorted::after{content:attr(data-dir);margin-left
 td.l,th.l{text-align:left}
 tbody tr{cursor:pointer} tbody tr:hover{background:var(--hl)}
 tbody tr.cur{background:var(--hl);box-shadow:inset 3px 0 0 var(--accent)}
-.stocknav{display:flex;align-items:center;gap:6px;font-size:13px}
-.stocknav #scur{min-width:9em;text-align:center;color:var(--muted);font-variant-numeric:tabular-nums}
-.stocknav #scur b{color:var(--text)}
 .code{font-weight:600;margin-right:6px}
 .name{color:var(--muted)}
 .tag{display:inline-block;font-size:11px;padding:0 5px;border-radius:4px;margin-left:5px;
@@ -80,11 +77,6 @@ section.drop h2{font-size:14px;color:var(--muted);font-weight:500;margin:0 0 8px
         <button id="prev" title="前一個交易日">‹</button>
         <select id="date"></select>
         <button id="next" title="後一個交易日">›</button>
-      </div>
-      <div class="stocknav">
-        <button id="sprev" title="上一檔（←）">◀ 上一檔</button>
-        <span id="scur">點一檔股票開始</span>
-        <button id="snext" title="下一檔（→）">下一檔 ▶</button>
       </div>
       <div class="stats">
         <span>前 <b id="topn">150</b> 名佔全市場 <b id="share">–</b></span>
@@ -117,7 +109,7 @@ section.drop h2{font-size:14px;color:var(--muted);font-weight:500;margin:0 0 8px
     <h2>今日跌出前 <span class="topn2">150</span> 名</h2>
     <div class="droplist" id="drop"></div>
   </section>
-  <p class="note">點任一列在 TradingView 開圖；上方的「上一檔／下一檔」或鍵盤 ← → 依目前篩選與排序切換（安裝擴充功能後，TradingView 視窗裡也有切換按鈕）。名次變化與量比以前一交易日、前 20 個交易日平均成交值為基準；名次走勢為近 20 個交易日，線越高名次越前面。下載的清單為最新交易日。</p>
+  <p class="note">點任一列在 TradingView 開圖（安裝擴充功能後，TradingView 視窗裡有上一檔／下一檔按鈕，依目前篩選與排序切換）。名次變化與量比以前一交易日、前 20 個交易日平均成交值為基準；名次走勢為近 20 個交易日，線越高名次越前面。下載的清單為最新交易日。</p>
 </main>
 <script>
 const COLS = [
@@ -151,23 +143,14 @@ function openChart(url, nav){
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 
 function updateCur(){
-  const list=S.data?rows():[]; const i=list.findIndex(r=>r.code===S.cur);
+  // 標記目前在 TradingView 看的那一檔
   document.querySelectorAll("#body tr[data-code]").forEach(tr=>tr.classList.toggle("cur", tr.dataset.code===S.cur));
-  if(i>=0){ const r=list[i]; $("scur").innerHTML=`<b>${esc(r.code)} ${esc(r.name)}</b> · ${i+1}/${list.length}`; }
-  else $("scur").textContent = S.cur ? `${S.cur}（不在目前清單）` : "點一檔股票開始";
-  $("sprev").disabled = !(i>0); $("snext").disabled = !(list.length && i<list.length-1);
 }
 function openStock(code){
   const list=rows(); const i=list.findIndex(r=>r.code===code); if(i<0) return;
   S.cur=code; updateCur();
   const tr=document.querySelector(`#body tr[data-code="${CSS.escape(code)}"]`); if(tr) tr.scrollIntoView({block:"nearest"});
-  openChart(tvUrl(list[i]), {index:i, list:list.map(r=>({code:r.code, url:tvUrl(r), label:`${r.code} ${r.name}`}))});
-}
-function step(d){
-  const list=rows(); if(!list.length) return;
-  let i=list.findIndex(r=>r.code===S.cur);
-  i = i<0 ? 0 : Math.min(list.length-1, Math.max(0, i+d));
-  openStock(list[i].code);
+  openChart(tvUrl(list[i]), {index:i, list:list.map(r=>({code:r.code, url:tvUrl(r), label:`${r.code} ${r.name}`, streak:r.streak}))});
 }
 window.addEventListener("message", e=>{
   if(e.source!==window || !e.data || e.data.source!=="tw-rank-ext" || e.data.type!=="navChanged") return;
@@ -291,14 +274,6 @@ async function init(){
     $("body").innerHTML=`<tr><td class="empty" colspan="${COLS.length}">尚無資料，請先在 GitHub Actions 執行一次排程。</td></tr>`;
   }
 }
-$("sprev").onclick=()=>step(-1);
-$("snext").onclick=()=>step(1);
-document.addEventListener("keydown", e=>{
-  if(e.altKey||e.ctrlKey||e.metaKey) return;
-  if(/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)) return;
-  if(e.key==="ArrowRight"){ e.preventDefault(); step(1); }
-  if(e.key==="ArrowLeft"){ e.preventDefault(); step(-1); }
-});
 $("prev").onclick=()=> S.idx>0 && load(S.idx-1);
 $("next").onclick=()=> S.idx<S.dates.length-1 && load(S.idx+1);
 $("date").onchange=e=> load(S.dates.indexOf(e.target.value));

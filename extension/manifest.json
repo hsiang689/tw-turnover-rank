@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "成交值排行 → TradingView",
-  "version": "1.3.1",
+  "version": "1.4.0",
   "description": "在台股成交值排行網頁點股票時，重複使用同一個最大化的 TradingView 視窗，並可在視窗內切換上一檔／下一檔。",
   "permissions": [
     "storage"
