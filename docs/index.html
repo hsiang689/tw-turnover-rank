@@ -7,16 +7,30 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
-<meta name="theme-color" content="#0f1115">
+<meta name="theme-color" content="#f3ead7">
+<script>
+// 配色：warm（預設，護眼暖色）／dark／light，記在這台電腦的瀏覽器
+(function(){ var p="warm"; try{ p=localStorage.getItem("palette")||"warm"; }catch(e){}
+  if(!/^(warm|dark|light)$/.test(p)) p="warm"; document.documentElement.setAttribute("data-palette",p); })();
+</script>
 <style>
+/* 暖色護眼：米黃紙感底色、降低藍光與對比 */
 :root{
+  color-scheme:light;
+  --bg:#f3ead7; --panel:#faf5e9; --line:#e2d5bc; --text:#3a3127; --muted:#7c6f5c;
+  --accent:#a3602a; --up:#b8392d; --down:#2e7656; --chip:#eee3cb; --hl:#ecdec0;
+  --new:#b5650d;
+}
+:root[data-palette="dark"]{
+  color-scheme:dark;
   --bg:#0f1115; --panel:#161a20; --line:#262b33; --text:#d7dbe0; --muted:#8a919c;
   --accent:#4f8cff; --up:#f0484f; --down:#22ab94; --chip:#1f242c; --hl:#1b2230;
   --new:#f5a524;
 }
-@media (prefers-color-scheme: light){
-  :root{ --bg:#f6f7f9; --panel:#fff; --line:#e3e6ea; --text:#1d2128; --muted:#6b7380;
-    --accent:#2f6fe4; --up:#d9363e; --down:#0f9b7f; --chip:#eef0f3; --hl:#eef4ff; --new:#c97a00; }
+:root[data-palette="light"]{
+  color-scheme:light;
+  --bg:#f6f7f9; --panel:#fff; --line:#e3e6ea; --text:#1d2128; --muted:#6b7380;
+  --accent:#2f6fe4; --up:#d9363e; --down:#0f9b7f; --chip:#eef0f3; --hl:#eef4ff; --new:#c97a00;
 }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--text);
@@ -25,6 +39,10 @@ header{position:sticky;top:0;z-index:5;background:var(--bg);border-bottom:1px so
 .wrap{max-width:1280px;margin:0 auto;padding:0 16px}
 .top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;padding:14px 0 10px}
 h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.02em}
+.palette{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;margin-left:-8px}
+.palette button{border:0;border-radius:0;background:transparent;color:var(--muted);padding:3px 10px;font-size:12.5px}
+.palette button+button{border-left:1px solid var(--line)}
+.palette button[aria-pressed="true"]{background:var(--chip);color:var(--text);font-weight:600}
 .datebox{display:flex;align-items:center;gap:6px}
 button,select,input{font:inherit;color:inherit;background:var(--chip);border:1px solid var(--line);
   border-radius:6px;padding:5px 9px}
@@ -73,6 +91,11 @@ section.drop h2{font-size:14px;color:var(--muted);font-weight:500;margin:0 0 8px
   <div class="wrap">
     <div class="top">
       <h1>成交值排行追蹤</h1>
+      <div class="palette" role="group" aria-label="配色">
+        <button type="button" data-p="warm" title="暖色護眼（預設）">暖色</button>
+        <button type="button" data-p="dark" title="深色">深色</button>
+        <button type="button" data-p="light" title="淺色">淺色</button>
+      </div>
       <div class="datebox">
         <button id="prev" title="前一個交易日">‹</button>
         <select id="date"></select>
@@ -295,6 +318,15 @@ $("resetf").onclick=()=>{
   $("streak").value="1"; $("minpct").value=""; $("minpct").dispatchEvent(new Event("change"));
   renderBody();
 };
+const THEME_BG={warm:"#f3ead7",dark:"#0f1115",light:"#f6f7f9"};
+function setPalette(p){
+  document.documentElement.setAttribute("data-palette",p);
+  try{ localStorage.setItem("palette",p); }catch(e){}
+  document.querySelectorAll(".palette button").forEach(b=>b.setAttribute("aria-pressed", String(b.dataset.p===p)));
+  const m=document.querySelector('meta[name="theme-color"]'); if(m) m.setAttribute("content", THEME_BG[p]);
+}
+document.querySelectorAll(".palette button").forEach(b=> b.onclick=()=>setPalette(b.dataset.p));
+setPalette(document.documentElement.getAttribute("data-palette")||"warm");
 init();
 </script>
 </body>
